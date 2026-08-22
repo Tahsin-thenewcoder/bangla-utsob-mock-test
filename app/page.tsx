@@ -137,7 +137,7 @@ export default function Home() {
               </Link>
 
               <Link
-                href="/npm leaderboard"
+                href="/leaderboard"
                 className="rounded-2xl border border-slate-200 bg-white px-7 py-4 font-bold text-slate-700 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
               >
                 🏆 লিডারবোর্ড দেখুন
