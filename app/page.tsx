@@ -70,12 +70,12 @@ export default function Home() {
     📋 নিয়মাবলি
   </a>
 
-  <a
-    href="#result"
+  <Link
+    href="/leaderboard"
     className="text-slate-600 transition hover:text-orange-600"
   >
     📊 আমার ফলাফল
-  </a>
+  </Link>
 </div>
 
           <Link
