@@ -1,46 +1,76 @@
+
 import { NextRequest, NextResponse } from "next/server";
 
-const urls: Record<string, string> = {
-  "6": "https://script.google.com/macros/s/AKfycbybkfp7ZLO5CiD9CPSNJuKX5dSIlIJGDCkt4338qaon1DnRZex5DoKMK3SbWvMtuhIMfA/exec",
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-  "7": "https://script.google.com/macros/s/AKfycbwQTMe8z1sPNuEqMhAVBXIu2nORmDjVyzLoBnwPR3zh2pwH2qciGfen4eY369xlkeFoSw/exec",
+const SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbxn5dL8cgN6ITClAoj0Irvrb0AdvLrT9_yHetYEg4U9cxxIU9Bwxgox6VLGy_ZQh0p6/exec";
 
-  "8": "https://script.google.com/macros/s/AKfycbxjIAzsFCsUDv7-4dX3Ar6VI3maRam6LbF5-wa35n1ndrLOJhw5TPdRYjyfLr2U9hoZ/exec",
-
-  "9-10":
-    "https://script.google.com/macros/s/AKfycbxjhbhh7pdkIS1MlfhV-SoMPPPOFb3smX_mzsViitm71QwBmYU9VRdkh6E_MjebgUBh/exec",
+const classNames: Record<string, string> = {
+  "6": "Class_6",
+  "7": "Class_7",
+  "8": "Class_8",
+  "9-10": "Class_9_10",
 };
 
 export async function GET(req: NextRequest) {
   const classId = req.nextUrl.searchParams.get("class") || "6";
+  const className = classNames[classId];
 
-  const url = urls[classId];
-
-  if (!url) {
+  if (!className) {
     return NextResponse.json(
-      { error: "Invalid class" },
+      { success: false, error: "Invalid class" },
       { status: 400 }
     );
   }
 
   try {
-    const response = await fetch(url, {
+    const url = new URL(SCRIPT_URL);
+    url.searchParams.set("action", "leaderboard");
+    url.searchParams.set("class", className);
+
+    const response = await fetch(url.toString(), {
       cache: "no-store",
       redirect: "follow",
     });
 
-    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(`Backend HTTP ${response.status}`);
+    }
 
-    return new NextResponse(text, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-  } catch {
+    const data = await response.json();
+
+    if (!data.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: data.error || "Leaderboard unavailable",
+        },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Fetch failed" },
-      { status: 500 }
+      {
+        success: true,
+        leaderboard: data.leaderboard || [],
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Leaderboard API error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Leaderboard লোড করা যাচ্ছে না।",
+      },
+      { status: 502 }
     );
   }
 }
