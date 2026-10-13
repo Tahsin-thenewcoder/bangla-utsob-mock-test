@@ -142,8 +142,10 @@ export default function ExamClient({ className }: Props) {
   const timeText = secondsLeft === null ? "--:--" : `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`;
 
   if (!sheetName) return <main className="p-10 text-center">এই শ্রেণির পরীক্ষা পাওয়া যায়নি।</main>;
-  return (
-    <main className={`font-[family-name:var(--font-solaiman)] min-h-screen bg-[#f5f7f6] px-4 py-10 text-slate-800`}>
+  return (<main
+  className="min-h-screen bg-[#f5f7f6] px-4 py-10 text-slate-800"
+  style={{ fontFamily: "SolaimanLipi, sans-serif" }}
+>
       <div className="mx-auto max-w-4xl">
         <header className="mb-8 text-center">
           <p className="font-semibold text-emerald-700">সূচনা ছাত্র সংগঠন</p>
