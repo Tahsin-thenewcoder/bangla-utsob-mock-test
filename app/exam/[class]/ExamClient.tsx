@@ -1,19 +1,39 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Hind_Siliguri } from "next/font/google";
-
-const hind = Hind_Siliguri({ subsets: ["bengali", "latin"], weight: ["400", "500", "600", "700"] });
 
 type Question = { id: string | number; question: string; options: string[]; marks: number };
 type Review = Question & { selectedIndex: number; correctIndex: number; explanation: string };
 type Result = { score: number; total: number; correct: number; wrong: number; unanswered: number; attempt: number; leaderboardEligible: boolean; review: Review[] };
-type Session = { token: string; startedAt: number; expiresAt: number; questions: Question[]; name: string; school: string };
+type Session = { token: string; startedAt: number | string; expiresAt: number | string; questions: Question[]; name: string; school: string };
 type Props = { className: string };
 
 const labels: Record<string, string> = { "6": "ষষ্ঠ শ্রেণি", "7": "সপ্তম শ্রেণি", "8": "অষ্টম শ্রেণি", "9-10": "নবম-দশম শ্রেণি" };
 const sheets: Record<string, string> = { "6": "Class_6", "7": "Class_7", "8": "Class_8", "9-10": "Class_9_10" };
 const letters = ["ক", "খ", "গ", "ঘ"];
+
+// Apps Script may return Unix milliseconds, Unix seconds, or ISO strings.
+function toMilliseconds(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number" || (typeof value === "string" && /^\d+(?:\.\d+)?$/.test(value.trim()))) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return n < 1e11 ? n * 1000 : n;
+  }
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function deadlineFor(session: Session): number | null {
+  const explicit = toMilliseconds(session.expiresAt);
+  if (explicit !== null) return explicit;
+  const start = toMilliseconds(session.startedAt);
+  return start === null ? null : start + session.questions.length * 60_000;
+}
+
 
 async function api(payload: Record<string, unknown>) {
   const response = await fetch("/api/exam", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
@@ -89,10 +109,11 @@ export default function ExamClient({ className }: Props) {
     }
   }, [storageKey]);
 
-  const secondsLeft = session ? Math.max(0, Math.ceil((session.expiresAt - now) / 1000)) : 0;
+  const deadline = session ? deadlineFor(session) : null;
+  const secondsLeft = deadline === null ? null : Math.max(0, Math.ceil((deadline - now) / 1000));
   useEffect(() => {
-    if (session && !result && secondsLeft === 0) void submitExam();
-  }, [session, result, secondsLeft, submitExam]);
+    if (session && !result && secondsLeft === 0 && !submitting && !error) void submitExam();
+  }, [session, result, secondsLeft, submitting, error, submitExam]);
 
   async function startExam() {
     if (!name.trim() || !school.trim()) { setError("নাম ও বিদ্যালয়ের নাম পূরণ করো।"); return; }
@@ -102,6 +123,9 @@ export default function ExamClient({ className }: Props) {
     try {
       const data = await api({ action: "start", name: name.trim(), school: school.trim(), class: sheetName });
       const next: Session = { token: data.token, startedAt: data.startedAt, expiresAt: data.expiresAt, questions: data.questions, name: name.trim(), school: school.trim() };
+      if (!Array.isArray(next.questions) || deadlineFor(next) === null) {
+        throw new Error("সার্ভার থেকে পরীক্ষার সময় পাওয়া যায়নি। Apps Script-এর startedAt/expiresAt যাচাই করো।");
+      }
       setSession(next);
       sessionRef.current = next;
       setAnswers({});
@@ -115,11 +139,11 @@ export default function ExamClient({ className }: Props) {
   const questions = session?.questions || [];
   const question = questions[current];
   const answeredCount = questions.filter(q => answers[String(q.id)] !== undefined).length;
-  const timeText = `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`;
+  const timeText = secondsLeft === null ? "--:--" : `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`;
 
   if (!sheetName) return <main className="p-10 text-center">এই শ্রেণির পরীক্ষা পাওয়া যায়নি।</main>;
   return (
-    <main className={`${hind.className} min-h-screen bg-[#f5f7f6] px-4 py-10 text-slate-800`}>
+    <main className={`font-[family-name:var(--font-solaiman)] min-h-screen bg-[#f5f7f6] px-4 py-10 text-slate-800`}>
       <div className="mx-auto max-w-4xl">
         <header className="mb-8 text-center">
           <p className="font-semibold text-emerald-700">সূচনা ছাত্র সংগঠন</p>
@@ -143,14 +167,15 @@ export default function ExamClient({ className }: Props) {
             <div><p className="text-sm text-slate-500">পরীক্ষার্থী: {session.name}</p><p className="text-sm text-slate-500">বিদ্যালয়: {session.school}</p></div>
             <div className="flex flex-wrap items-center gap-3">
               <span className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800">উত্তর দিয়েছ: {answeredCount}/{questions.length}</span>
-              <span aria-live="off" className={`rounded-xl px-4 py-2 font-bold tabular-nums ${secondsLeft <= 60 ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-800"}`}>⏱ {timeText}</span>
+              <span aria-live="off" className={`rounded-xl px-4 py-2 font-bold tabular-nums ${secondsLeft !== null && secondsLeft <= 60 ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-800"}`}>⏱ {timeText}</span>
             </div>
           </div>
           <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-emerald-600 transition-all" style={{ width: `${questions.length ? answeredCount / questions.length * 100 : 0}%` }} /></div>
+          {deadline === null && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-red-700">পরীক্ষার সময় পাওয়া যায়নি। অ্যাডমিনকে জানাও।</p>}
           {question && <>
             <div className="mb-6 flex items-center justify-between"><span className="font-semibold text-emerald-700">প্রশ্ন {current + 1} / {questions.length}</span><span className="text-sm text-slate-500">নম্বর: {question.marks}</span></div>
             <h2 className="mb-6 text-xl font-semibold leading-relaxed">{question.question}</h2>
-            <div className="space-y-3">{question.options.map((option, index) => <button key={index} disabled={submitting || secondsLeft === 0} onClick={() => {
+            <div className="space-y-3">{question.options.map((option, index) => <button key={index} disabled={submitting || secondsLeft === 0 || secondsLeft === null} onClick={() => {
               const next = { ...answersRef.current, [String(question.id)]: index };
               answersRef.current = next;
               setAnswers(next);
