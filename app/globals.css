@@ -24,3 +24,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* Add this to app/globals.css after placing your licensed font file at public/fonts/SolaimanLipi.woff2 */
+@font-face {
+  font-family: "SolaimanLipi";
+  src: url("/fonts/SolaimanLipi.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+:root { --font-solaiman: "SolaimanLipi", "Noto Sans Bengali", sans-serif; }
