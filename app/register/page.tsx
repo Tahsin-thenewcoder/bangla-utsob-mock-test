@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCopy, GraduationCap, KeyRound, ShieldCheck, UserRoundPlus, UserRound, School, BookOpen, Eye, EyeOff, LockKeyhole } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardCopy, GraduationCap, KeyRound, ShieldCheck, UserRoundPlus } from "lucide-react";
 
 const classes = [
   { value: "Class_6", label: "ষষ্ঠ শ্রেণি" },
@@ -88,7 +88,7 @@ export default function RegisterPage() {
       <span className="hidden sm:inline">
         সূচনা ছাত্র সংগঠন · মডেল টেস্ট
       </span>
-      <span className="relative overflow-hidden bg-[radial-gradient(ellipse_at_50%_15%,#0d654c_0%,#064433_52%,#04372b_100%)] px-4 pb-24 pt-8 text-[#fff8e5] sm:px-5 sm:pb-32 sm:pt-12">বাংলা উৎসব</span>
+      <span className="sm:hidden">বাংলা উৎসব</span>
     </span>
   </div>
 </div>
@@ -127,11 +127,13 @@ export default function RegisterPage() {
                 </button>
               </div>
               <p className="mt-5 text-sm leading-7 text-amber-800">ID এবং PIN কাউকে দেবে না। PIN ভুলে গেলে এই পেজ থেকে উদ্ধার করা যাবে না।</p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <Link href="/" className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-700 px-4 py-3 font-bold text-emerald-800 hover:bg-emerald-50">মূল পাতায় যাও</Link>
-                <button type="button" onClick={() => { setStudentId(""); setName(""); setSchool(""); setStudentClass(""); setCopied(false); }} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#087354] px-4 py-3 font-bold text-white hover:bg-[#075d46]">নতুন নিবন্ধন <ArrowRight size={17} /></button>
+              <Link href="/login" className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#07543f] to-[#0a7655] px-5 py-4 text-center font-extrabold text-[#fff8e5] transition hover:from-[#064632] hover:to-[#07563e]">
+                <span>Login করে পরীক্ষায় অংশ নাও</span><ArrowRight size={19} />
+              </Link>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Link href="/" className="flex items-center justify-center rounded-xl border border-emerald-700 px-4 py-3 font-bold text-emerald-800 hover:bg-emerald-50">মূল পাতায় যাও</Link>
+                <button type="button" onClick={() => { setStudentId(""); setName(""); setSchool(""); setStudentClass(""); setCopied(false); }} className="flex items-center justify-center gap-2 rounded-xl border border-[#b9d5c7] px-4 py-3 font-bold text-emerald-800 hover:bg-emerald-50">নতুন নিবন্ধন <ArrowRight size={17} /></button>
               </div>
-              <p className="mt-4 text-xs text-slate-500">ID দিয়ে পরীক্ষা দেওয়ার সুবিধা পরবর্তী ধাপে চালু হবে।</p>
             </div>
           ) : (
             <>
