@@ -13,6 +13,7 @@ import {
   LogIn,
   ShieldCheck,
 } from 'lucide-react';
+import { LayoutDashboard } from "lucide-react";
 
 type Student = { studentId:string; name:string; school:string; className:string; year:number };
 const labels:Record<string,string> = {Class_6:'ষষ্ঠ শ্রেণি',Class_7:'সপ্তম শ্রেণি',Class_8:'অষ্টম শ্রেণি',Class_9_10:'নবম–দশম শ্রেণি'};
@@ -89,7 +90,7 @@ export default function LoginPage() {
 {getExamPath(student.className) ? (
   <Link
     href={getExamPath(student.className)!}
-    className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-[#07543f] to-[#0a7655] px-5 py-4 font-extrabold text-[#fff8e5] transition hover:from-[#064632] hover:to-[#07563e]"
+    className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#07543f] to-[#0a7655] px-5 py-4 font-extrabold text-[#fff8e5] transition hover:from-[#064632] hover:to-[#07563e]"
   >
     <BookOpenCheck size={21} />
     পরীক্ষায় অংশ নাও
@@ -102,6 +103,15 @@ export default function LoginPage() {
 )}
 
         {error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}
+        
+<Link
+    href="/dashboard"
+    className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#087454] bg-white px-5 py-4 font-bold text-[#07543f] transition hover:bg-[#e9f6ee]"
+  >
+    <LayoutDashboard size={20} />
+    Dashboard দেখো →
+  </Link>
+
         <button onClick={logout} disabled={loading} className="mt-6 w-full rounded-xl border border-emerald-700 px-5 py-3 font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-60">{loading?'অপেক্ষা করো...':'Logout করো'}</button>
       </div> : <>
         <div className="mb-6 flex items-start gap-3 rounded-2xl bg-[#f2f7ef] p-4"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#dceedd] text-[#064c36]"><LockKeyhole size={22}/></div><div><h2 className="text-xl font-extrabold">তোমার অ্যাকাউন্টে প্রবেশ করো</h2><p className="mt-1 text-sm leading-6 text-[#506b5e]">নিবন্ধনের সময় পাওয়া ID ও নিজের PIN লিখবে।</p></div></div>

@@ -7,11 +7,13 @@ import { ArrowLeft, BookOpenCheck, CheckCircle2, Clock3, ShieldCheck, LogOut } f
 type Question = { id: string | number; question: string; options: string[]; marks: number };
 type Review = Question & { selectedIndex: number; correctIndex: number; explanation: string };
 type Result = { score: number; total: number; correct: number; wrong: number; unanswered: number; attempt: number; leaderboardEligible: boolean; review: Review[] };
+type HistoryEntry = { testId: string; attempt: number; score: number; total: number; submittedAt: number; leaderboardEligible: boolean };
 type Student = { studentId: string; name: string; school: string; className: string; year: number };
 type ExamSession = { token: string; startedAt: number; expiresAt: number; questions: Question[]; answers: Record<string, number>; status: string; result?: Result };
 const sheets: Record<string, string> = { "6": "Class_6", "7": "Class_7", "8": "Class_8", "9-10": "Class_9_10" };
 const labels: Record<string, string> = { "6": "ষষ্ঠ শ্রেণি", "7": "সপ্তম শ্রেণি", "8": "অষ্টম শ্রেণি", "9-10": "নবম–দশম শ্রেণি" };
 const letters = ["ক", "খ", "গ", "ঘ"];
+const TEST_ID = "MT01"; // DEV test only; later replace with selected test
 async function api(body: Record<string, unknown>) {
   const response = await fetch("/api/exam", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
   const data = await response.json();
@@ -22,6 +24,8 @@ async function api(body: Record<string, unknown>) {
 export default function ExamClient({ className }: { className: string }) {
   const examClass = sheets[className];
   const [student, setStudent] = useState<Student | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyError, setHistoryError] = useState("");
   const [checking, setChecking] = useState(true);
   const [agreed, setAgreed] = useState(false);
   const [retake, setRetake] = useState(false);
@@ -42,9 +46,17 @@ export default function ExamClient({ className }: { className: string }) {
   const submitting = useRef(false);
   const sessionRef = useRef<ExamSession | null>(null);
   useEffect(() => { sessionRef.current = session; }, [session]);
+  const loadHistory = useCallback(async () => {
+    try {
+      const data = await api({ action: "history" });
+      setHistory(Array.isArray(data.history) ? data.history : []);
+      setHistoryError("");
+    } catch { setHistoryError("আগের ফলাফল এখন দেখানো যাচ্ছে না।"); }
+  }, []);
   const applySession = useCallback((data: ExamSession) => {
     if (data.status === "SUBMITTED" && data.result) {
       setResult(data.result);
+      void loadHistory();
       setSession(null);
       sessionRef.current = null;
     } else {
@@ -58,19 +70,19 @@ export default function ExamClient({ className }: { className: string }) {
       lastSavedRevision.current = 0;
       setSavedRevision(0);
     }
-  }, []);
+  }, [loadHistory]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const response = await fetch("/api/auth/me", { cache: "no-store" });
         const data = await response.json();
-        if (!cancelled && data.success && data.student) setStudent(data.student);
+        if (!cancelled && data.success && data.student) { setStudent(data.student); void loadHistory(); }
       } catch { /* Login prompt shown below */ }
       finally { if (!cancelled) setChecking(false); }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [loadHistory]);
   useEffect(() => {
     if (!session || result) return;
     const interval = window.setInterval(() => setNow(Date.now()), 500);
@@ -144,7 +156,7 @@ export default function ExamClient({ className }: { className: string }) {
     if (!student || !agreed || !examClass) return;
     setBusy(true); setError(""); setResult(null);
     try {
-      const data = await api({ action: "start", retake });
+      const data = await api({ action: "start", retake, testId: TEST_ID });
       applySession(data);
       setRetake(false);
     } catch (e) { setError(e instanceof Error ? e.message : "পরীক্ষা শুরু করা যায়নি।"); }
@@ -232,12 +244,15 @@ export default function ExamClient({ className }: { className: string }) {
             <p className="text-sm text-[#45685b]">অন্য অ্যাকাউন্টে পরীক্ষা দিতে চাও?</p>
             <button type="button" onClick={() => void handleLogout()} disabled={busy} className="inline-flex items-center gap-2 rounded-lg border border-[#b9d5c7] bg-white px-4 py-2 text-sm font-bold text-[#07543f] transition hover:bg-[#e9f6ee] disabled:cursor-not-allowed disabled:opacity-50"><LogOut size={17} /> {busy ? "অপেক্ষা করো…" : "Logout"}</button>
           </div>
+          <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p className="font-bold">মডেল টেস্ট ০১ · DEV 2027</p><p className="mt-1 text-sm">প্রথম Attempt অফিসিয়াল; পরেরগুলো অনুশীলন। পরীক্ষার সময়সীমার মধ্যে Retake করা যাবে।</p></div>
           <h3 className="mb-3 mt-7 text-xl font-bold">পরীক্ষার গুরুত্বপূর্ণ নির্দেশনা</h3>
           <ul className="list-disc space-y-2 pl-5 text-sm leading-7 text-slate-700"><li>নির্ধারিত সময়
-৫টি প্রশ্নে ৫ মিনিট এবং ২০টি প্রশ্নে ২০ মিনিট সময় থাকবে। পরীক্ষা শুরু করলেই সময় গণনা শুরু হবে।</li><li>অন্য Tab-এ গেলেও বা পেজ বন্ধ করলেও সময় চলতে থাকবে।</li><li>উত্তর সার্ভারে সংরক্ষণ করা হয়; সংরক্ষণ সম্পন্ন হয়েছে কি না দেখবে।</li><li>সময় শেষ হলে সংরক্ষিত উত্তর দিয়ে ফলাফল চূড়ান্ত হবে।</li><li>উত্তর না দেওয়া প্রশ্নে কোনো নম্বর যোগ হবে না।</li><li>প্রথম Attempt-ই Leaderboard-এ গণনা হবে।</li></ul>
+এই DEV টেস্টে ২০টি প্রশ্নে ২০ মিনিট সময় থাকবে। পরীক্ষা শুরু করলেই সময় গণনা শুরু হবে।</li><li>অন্য Tab-এ গেলেও বা পেজ বন্ধ করলেও সময় চলতে থাকবে।</li><li>উত্তর সার্ভারে সংরক্ষণ করা হয়; সংরক্ষণ সম্পন্ন হয়েছে কি না দেখবে।</li><li>সময় শেষ হলে সংরক্ষিত উত্তর দিয়ে ফলাফল চূড়ান্ত হবে।</li><li>উত্তর না দেওয়া প্রশ্নে কোনো নম্বর যোগ হবে না।</li><li>প্রথম Attempt-ই Leaderboard-এ গণনা হবে।</li></ul>
           <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-[#dce9db] bg-[#f7faf4] p-4 text-sm"><input type="checkbox" className="mt-1 accent-emerald-700" checked={agreed} onChange={e => setAgreed(e.target.checked)}/><span>আমি নির্দেশনাগুলো পড়েছি ও বুঝেছি।</span></label>
+          {history.length > 0 && <div className="mt-6 rounded-xl border border-[#dce9db] p-4"><h3 className="font-bold">আমার আগের ফলাফল</h3><div className="mt-3 space-y-2">{history.filter(h => h.testId === TEST_ID).map((h,i) => <p key={`${h.testId}-${h.attempt}-${i}`} className="text-sm">Attempt {h.attempt}: <b>{h.score}/{h.total}</b> · {h.leaderboardEligible ? "অফিসিয়াল" : "অনুশীলন"}</p>)}</div></div>}
+          {historyError && <p className="mt-3 text-sm text-amber-700">{historyError}</p>}
           {error && <p role="alert" className="mt-4 text-red-700">{error}</p>}
-          <button onClick={() => void startExam()} disabled={!agreed || busy} className="mt-5 w-full rounded-xl bg-[#087457] px-5 py-3 font-bold text-white disabled:opacity-50">{busy ? "পরীক্ষা প্রস্তুত হচ্ছে…" : "পরীক্ষা শুরু করো"}</button>
+          <button onClick={() => void startExam()} disabled={!agreed || busy} className="mt-5 w-full rounded-xl bg-[#087457] px-5 py-3 font-bold text-white disabled:opacity-50">{busy ? "পরীক্ষা প্রস্তুত হচ্ছে…" : retake ? "আবার পরীক্ষা শুরু করো" : "পরীক্ষা শুরু করো"}</button>
         </section>
       : session && !result ? <section className="rounded-3xl bg-white p-5 shadow-xl sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-bold">{student.name}</p><p className="text-xs text-slate-500">{saveState}</p></div><div className="flex items-center gap-3"><span className="rounded-full bg-[#e9f5e9] px-3 py-2 text-sm">{answeredCount}/{questions.length} উত্তর</span><span className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 font-bold tabular-nums ${secondsLeft !== null && secondsLeft <= 60 ? "bg-red-50 text-red-700" : "bg-slate-100"}`}><Clock3 size={16}/>{timeText}</span></div></div>
@@ -246,7 +261,22 @@ export default function ExamClient({ className }: { className: string }) {
           {error && <div role="alert" className="mt-5 rounded-xl bg-red-50 p-4 text-red-700">{error} <button onClick={()=>void flushSave()} className="underline">আবার সংরক্ষণ করো</button></div>}
           {confirm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div role="dialog" aria-modal="true" className="w-full max-w-md rounded-2xl bg-white p-6"><h3 className="text-xl font-bold">পরীক্ষা জমা দেবে?</h3><p className="my-4 text-slate-600">উত্তর দেওয়া হয়েছে {answeredCount}টি, বাকি {questions.length-answeredCount}টি। জমা দিলে আর পরিবর্তন করা যাবে না।</p><div className="flex justify-end gap-3"><button onClick={()=>setConfirm(false)} className="rounded-lg border px-4 py-2">ফিরে যাও</button><button onClick={()=>void submitExam()} className="rounded-lg bg-[#087457] px-4 py-2 text-white">হ্যাঁ, জমা দাও</button></div></div></div>}
         </section>
-      : result ? <section className="rounded-3xl bg-white p-6 shadow-xl sm:p-8"><CheckCircle2 className="mx-auto text-[#087457]" size={42}/><h2 className="mt-3 text-center text-2xl font-bold">পরীক্ষার ফলাফল</h2><p className="mt-3 text-center text-4xl font-extrabold text-[#087457]">{result.score} / {result.total}</p><p className="mt-3 text-center text-slate-600">সঠিক {result.correct} · ভুল {result.wrong} · উত্তর দাওনি {result.unanswered}</p><p className="mt-2 text-center text-sm">Attempt {result.attempt} · {result.leaderboardEligible ? "Leaderboard-এ গণনা হবে" : "Leaderboard-এ গণনা হবে না"}</p><h3 className="mb-4 mt-8 text-xl font-bold">উত্তর পর্যালোচনা</h3><div className="space-y-4">{result.review.map((q,i)=><article key={`${q.id}-${i}`} className="rounded-xl border p-4"><h4 className="mb-3 font-bold">{i+1}. {q.question}</h4>{q.options.map((opt,j)=><p key={j} className={`my-1 rounded-lg px-3 py-2 ${j===q.correctIndex ? "bg-emerald-50 text-emerald-900" : j===q.selectedIndex ? "bg-red-50 text-red-800" : "bg-slate-50"}`}>{letters[j]}. {opt} {j===q.correctIndex ? "✓ সঠিক" : j===q.selectedIndex ? "✗ তোমার উত্তর" : ""}</p>)}{q.explanation && <p className="mt-2 text-sm">ব্যাখ্যা: {q.explanation}</p>}</article>)}</div><button onClick={()=>{setResult(null);setSession(null);setAgreed(false);setRetake(true);setError("");}} className="mt-6 w-full rounded-xl border border-[#087457] p-3 font-bold">আবার পরীক্ষা দাও</button><button
+      : result ? <section className="rounded-3xl bg-white p-6 shadow-xl sm:p-8"><CheckCircle2 className="mx-auto text-[#087457]" size={42}/><h2 className="mt-3 text-center text-2xl font-bold">পরীক্ষার ফলাফল</h2><p className="mt-3 text-center text-4xl font-extrabold text-[#087457]">{result.score} / {result.total}</p><p className="mt-3 text-center text-slate-600">সঠিক {result.correct} · ভুল {result.wrong} · উত্তর দাওনি {result.unanswered}</p><p className="mt-2 text-center text-sm">Attempt {result.attempt} · {result.leaderboardEligible ? "Leaderboard-এ গণনা হবে" : "Leaderboard-এ গণনা হবে না"}</p><h3 className="mb-4 mt-8 text-xl font-bold">উত্তর পর্যালোচনা</h3><div className="space-y-4">{result.review.map((q,i)=><article key={`${q.id}-${i}`} className="rounded-xl border p-4"><h4 className="mb-3 font-bold">{i+1}. {q.question}</h4>{q.options.map((opt,j)=><p key={j} className={`my-1 rounded-lg px-3 py-2 ${j===q.correctIndex ? "bg-emerald-50 text-emerald-900" : j===q.selectedIndex ? "bg-red-50 text-red-800" : "bg-slate-50"}`}>{letters[j]}. {opt} {j===q.correctIndex ? "✓ সঠিক" : j===q.selectedIndex ? "✗ তোমার উত্তর" : ""}</p>)}{q.explanation && <p className="mt-2 text-sm">ব্যাখ্যা: {q.explanation}</p>}</article>)}</div><button onClick={()=>{setResult(null);setSession(null);setAgreed(false);setRetake(true);setError("");}} className="mt-6 w-full rounded-xl border border-[#087457] p-3 font-bold">আবার পরীক্ষা দাও</button>
+      
+        
+<button
+  type="button"
+  onClick={() => {
+    window.location.href = "/dashboard";
+  }}
+  disabled={busy}
+  className="mt-3 w-full rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+>
+  Dashboard-এ ফিরে যাও
+</button>
+
+
+      <button
   type="button"
   onClick={() => void handleLogout()}
   disabled={busy}

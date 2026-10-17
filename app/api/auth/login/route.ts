@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SESSION_COOKIE, SESSION_SECONDS, signSession } from "@/lib/student-session";
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxn5dL8cgN6ITClAoj0Irvrb0AdvLrT9_yHetYEg4U9cxxIU9Bwxgox6VLGy_ZQh0p6/exec';
+const SCRIPT_URL = process.env.EXAM_SCRIPT_URL;
+
+if (!SCRIPT_URL) {
+  throw new Error("EXAM_SCRIPT_URL is missing");
+}
 
 export async function POST(request: NextRequest) {
   const origin = request.headers.get('origin');
@@ -16,7 +20,7 @@ export async function POST(request: NextRequest) {
     const timer = setTimeout(() => controller.abort(), 25000);
     let data: Record<string, unknown>;
     try {
-      const upstream = await fetch(SCRIPT_URL, {method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',studentId,pin}),redirect:'follow',cache:'no-store',signal:controller.signal});
+      const upstream = await fetch(SCRIPT_URL!, {method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',studentId,pin}),redirect:'follow',cache:'no-store',signal:controller.signal});
       if (!upstream.ok) throw new Error('Upstream unavailable');
       data = await upstream.json();
     } finally { clearTimeout(timer); }
