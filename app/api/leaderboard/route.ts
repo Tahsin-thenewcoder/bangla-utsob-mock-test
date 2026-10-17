@@ -4,9 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbxn5dL8cgN6ITClAoj0Irvrb0AdvLrT9_yHetYEg4U9cxxIU9Bwxgox6VLGy_ZQh0p6/exec";
-
 const classNames: Record<string, string> = {
   "6": "Class_6",
   "7": "Class_7",
@@ -26,7 +23,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const url = new URL(SCRIPT_URL);
+    const scriptUrl = process.env.EXAM_SCRIPT_URL;
+
+    if (!scriptUrl) {
+      throw new Error("EXAM_SCRIPT_URL is missing");
+    }
+
+    const url = new URL(scriptUrl);
     url.searchParams.set("action", "leaderboard");
     url.searchParams.set("class", className);
 
@@ -51,11 +54,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        leaderboard: data.leaderboard || [],
-      },
+   return NextResponse.json(
+  {
+    success: true,
+    testId: data.testId ?? null,
+    leaderboard: data.leaderboard || [],
+  },
       {
         headers: {
           "Cache-Control": "no-store, max-age=0",

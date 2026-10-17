@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, BookOpenCheck, Crown, RefreshCw, Trophy, Users, Sparkles } from "lucide-react";
 
 type Student = { rank: number; name: string; school: string; score: number; total: number; class: string };
-type ApiResponse = { success: boolean; leaderboard?: Student[]; error?: string };
+type ApiResponse = { success: boolean; testId?: string | null; leaderboard?: Student[]; error?: string };
 
 const classes = [
   { id: "6", label: "ষষ্ঠ শ্রেণি", group: "ক বিভাগ" },
@@ -24,6 +24,7 @@ const podium = [
 export default function LeaderboardPage() {
   const [selectedClass, setSelectedClass] = useState<ClassId>("6");
   const [students, setStudents] = useState<Student[]>([]);
+  const [publishedTestId, setPublishedTestId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -32,6 +33,7 @@ export default function LeaderboardPage() {
     setLoading(true);
     setError("");
     setStudents([]);
+    setPublishedTestId(null);
     try {
       const response = await fetch(`/api/leaderboard?class=${encodeURIComponent(classId)}`, {
         cache: "no-store", signal,
@@ -41,7 +43,10 @@ export default function LeaderboardPage() {
       if (!data.success || !Array.isArray(data.leaderboard)) {
         throw new Error(data.error || "ফলাফলের তথ্য সঠিক নয়।");
       }
-      if (!signal.aborted) setStudents(data.leaderboard);
+      if (!signal.aborted) {
+        setStudents(data.leaderboard);
+        setPublishedTestId(typeof data.testId === "string" ? data.testId : null);
+      }
     } catch (err) {
       if (!signal.aborted) setError(err instanceof Error ? err.message : "ফলাফল লোড করা যায়নি।");
     } finally {
@@ -57,6 +62,8 @@ export default function LeaderboardPage() {
 
   const active = classes.find((item) => item.id === selectedClass)!;
   const maxScore = students.length ? Math.max(...students.map((s) => s.score)) : null;
+  const testNumber = publishedTestId?.match(/^MT(\d{2})$/)?.[1];
+  const publishedTitle = testNumber ? `মডেল টেস্ট ${testNumber}` : publishedTestId;
 
   return (
     <main className="min-h-screen bg-[#f5f9f6] text-[#17372e]" style={{ fontFamily: 'SolaimanLipi, "Noto Sans Bengali", sans-serif' }}>
@@ -79,7 +86,7 @@ export default function LeaderboardPage() {
           <div className="pointer-events-none absolute -bottom-40 -left-24 h-72 w-72 rounded-full border-[45px] border-[#41b785]/[.13]" />
           <div className="relative flex flex-col items-start justify-between gap-5 md:flex-row md:items-center">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#c7f0da]"><Sparkles size={14}/> সূচনা ছাত্র সংগঠন · বাংলা উৎসব ১৪৩৩</p>
+              <p className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#c7f0da]"><Sparkles size={14}/> সূচনা ছাত্র সংগঠন · বাংলা উৎসব ২০২৭</p>
               <h1 className="mt-4 text-3xl font-bold leading-tight sm:text-4xl lg:text-[42px]">লিডারবোর্ড</h1>
               <p className="mt-3 text-sm leading-7 text-[#cce3d8] sm:text-base">বাংলা ভাষা ও সাহিত্য অলিম্পিয়াড · প্রস্তুতিমূলক পরীক্ষা</p>
             </div>
@@ -115,6 +122,11 @@ export default function LeaderboardPage() {
               <p className="text-xs font-bold tracking-wide text-[#08754d]">ফলাফল ও অবস্থান</p>
               <h2 className="mt-1 text-2xl font-bold sm:text-3xl">{active.label} <span className="text-base font-normal text-[#688276]">· {active.group}</span></h2>
               <p className="mt-1 text-sm text-[#688276]">লিডারবোর্ডে শুধু প্রথম প্রচেষ্টার ফলাফল গণনা করা হয়</p>
+              {!loading && publishedTitle && (
+                <p className="mt-2 inline-flex rounded-full border border-[#cde3d6] bg-[#edf8f1] px-3 py-1.5 text-sm font-bold text-[#08754d]">
+                  {publishedTitle} · অফিসিয়াল মেধাতালিকা
+                </p>
+              )}
             </div>
             <button type="button" onClick={() => setRefreshKey((v) => v + 1)} disabled={loading}
               className="inline-flex items-center gap-2 rounded-xl border border-[#cde3d6] bg-white px-4 py-2.5 text-sm font-bold text-[#08754d] shadow-sm transition hover:bg-[#edf8f1] disabled:opacity-50">
@@ -131,6 +143,12 @@ export default function LeaderboardPage() {
               <p className="font-semibold text-red-600">{error}</p>
               <button type="button" onClick={() => setRefreshKey((v) => v + 1)} className="mt-4 rounded-lg bg-[#08754d] px-5 py-2 text-white">আবার চেষ্টা করো</button>
             </div>
+          ) : !publishedTestId ? (
+            <div className="mt-6 rounded-2xl border border-[#dce9e1] bg-white p-12 text-center">
+              <Trophy className="mx-auto mb-3 text-[#a5bdaf]" size={30}/>
+              <p className="font-semibold text-[#688276]">এখনো কোনো মডেল টেস্টের মেধাতালিকা প্রকাশিত হয়নি।</p>
+              <p className="mt-2 text-sm text-[#84998d]">ফলাফল প্রকাশিত হলে এখানে দেখা যাবে।</p>
+            </div>
           ) : students.length === 0 ? (
             <div className="mt-6 rounded-2xl border border-[#dce9e1] bg-white p-12 text-center">
               <Trophy className="mx-auto mb-3 text-[#a5bdaf]" size={30}/>
@@ -139,7 +157,7 @@ export default function LeaderboardPage() {
           ) : (
             <>
               <div className="mt-6 flex flex-wrap gap-3 text-sm">
-                <span className="inline-flex items-center gap-2 rounded-xl border border-[#dce9e1] bg-white px-4 py-2.5 text-[#688276] shadow-sm"><Users size={17} className="text-[#08754d]"/> অংশগ্রহণকারী <strong className="text-[#17372e]">{students.length} জন</strong></span>
+                <span className="inline-flex items-center gap-2 rounded-xl border border-[#dce9e1] bg-white px-4 py-2.5 text-[#688276] shadow-sm"><Users size={17} className="text-[#08754d]"/> তালিকাভুক্ত <strong className="text-[#17372e]">{students.length} জন</strong></span>
                 <span className="inline-flex items-center gap-2 rounded-xl border border-[#dce9e1] bg-white px-4 py-2.5 text-[#688276] shadow-sm"><Crown size={17} className="text-[#b68a2b]"/> সর্বোচ্চ নম্বর <strong className="text-[#08754d]">{maxScore}</strong></span>
               </div>
 
@@ -177,7 +195,7 @@ export default function LeaderboardPage() {
                 </div>
                 {students.map((student, index) => (
                   <div key={`${student.rank}-${student.name}-${index}`} className="grid grid-cols-[44px_minmax(0,1fr)_70px] items-center gap-3 border-b border-[#edf2ee] px-4 py-4 last:border-0 hover:bg-[#f0faf4] sm:grid-cols-[80px_minmax(0,1fr)_minmax(0,1fr)_110px] sm:px-6">
-                    <span className="text-lg font-bold text-[#416b56]">{index < 3 ? podium[index].medal : student.rank}</span>
+                    <span className="text-lg font-bold text-[#416b56]">{student.rank <= 3 ? podium[student.rank - 1].medal : student.rank}</span>
                     <div className="min-w-0"><p className="break-words font-bold text-[#17372e]">{student.name || "নাম পাওয়া যায়নি"}</p><p className="mt-1 break-words text-xs text-[#688276] sm:hidden">{student.school || "বিদ্যালয়ের তথ্য নেই"}</p></div>
                     <span className="hidden break-words text-sm text-[#688276] sm:block">{student.school || "বিদ্যালয়ের তথ্য নেই"}</span>
                     <span className="text-right font-bold text-[#08754d]">{student.score}<span className="ml-1 text-xs font-normal text-[#84998d]">/{student.total}</span></span>
@@ -190,14 +208,14 @@ export default function LeaderboardPage() {
         </section>
 
         <footer className="mt-14 border-t border-[#dce8e0] pt-8 text-center">
-          <p className="text-lg font-bold text-[#174a39]">বাংলা উৎসব ১৪৩৩</p>
+          <p className="text-lg font-bold text-[#174a39]">বাংলা উৎসব ২০২৭</p>
           <p className="mt-1 text-sm text-[#688276]">হৃদয়ে বাংলা, সাহিত্য ও সৃজনে</p>
           <div className="mx-auto mt-6 grid max-w-xl gap-5 border-t border-[#dce8e0] pt-5 sm:grid-cols-2">
             <div><p className="text-[11px] uppercase tracking-wide text-[#84998d]">An Initiative of</p><p className="mt-1 font-bold text-[#174a39]">একাডেমিক উপকমিটি</p><p className="text-xs text-[#688276]">বাংলা উৎসব আয়োজক কমিটি</p></div>
             <div><p className="text-[11px] text-[#84998d]">Developed & Maintained by</p><p className="mt-1 font-bold text-[#174a39]">তথ্যপ্রযুক্তি উপকমিটি</p><p className="text-xs text-[#688276]">বাংলা উৎসব আয়োজক কমিটি</p></div>
           </div>
           <p className="mt-6 text-sm text-[#688276]">আয়োজনে: সূচনা ছাত্র সংগঠন</p>
-          <p className="mt-2 text-xs text-[#91a397]">© ২০২৬ · বাংলা উৎসব · সর্বস্বত্ব সংরক্ষিত</p>
+          <p className="mt-2 text-xs text-[#91a397]">© ২০২৭ · বাংলা উৎসব · সর্বস্বত্ব সংরক্ষিত</p>
         </footer>
       </div>
     </main>

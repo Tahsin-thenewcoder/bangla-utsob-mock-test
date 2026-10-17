@@ -2,8 +2,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { BookOpenCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BookOpenCheck, CalendarDays, Clock3, RefreshCw } from "lucide-react";
 
 const classes = [
   {
@@ -40,12 +40,12 @@ const guidelines = [
   {
     n: "০১",
     title: "সঠিক তথ্য প্রদান",
-    desc: "পরীক্ষা শুরুর আগে নিজের নাম ও বিদ্যালয়ের সঠিক তথ্য লিখবে।",
+    desc: "পরীক্ষার আগে নিজের নিবন্ধন সম্পন্ন করে লগইন করবে।",
   },
   {
     n: "০২",
     title: "নির্ধারিত সময়",
-    desc: "৫টি প্রশ্নে ৫ মিনিট এবং ২০টি প্রশ্নে ২০ মিনিট সময় থাকবে।",
+    desc: "প্রতি প্রশ্নের জন্য ১ মিনিট সময়; পরীক্ষার নির্ধারিত শেষ সময় অতিক্রম করা যাবে না।",
   },
   {
     n: "০৩",
@@ -55,12 +55,84 @@ const guidelines = [
   {
     n: "০৪",
     title: "ফলাফল ও লিডারবোর্ড",
-    desc: "পরীক্ষা জমা দেওয়ার পর ফলাফল দেখতে পারবে। লিডারবোর্ডে প্রথম প্রচেষ্টার ফলাফল গণনা হবে।",
+    desc: "পরীক্ষা জমা দিলে ব্যক্তিগত ফলাফল দেখতে পারবে। প্রথম প্রচেষ্টা প্রকাশিত হলে লিডারবোর্ডে গণনা হবে; Retake ব্যক্তিগত অনুশীলন।",
   },
 ];
 
+type ScheduledTest = {
+  testId: string;
+  year: number;
+  title: string;
+  startAt: string;
+  endAt: string;
+  questionsCount: number;
+  resultsPublished: boolean;
+  archiveVisible: boolean;
+};
+
+type ScheduleResponse = {
+  success: boolean;
+  tests?: ScheduledTest[];
+  error?: string;
+};
+
+const banglaDigits = (value: string | number) =>
+  String(value).replace(/[0-9]/g, (digit) => "০১২৩৪৫৬৭৮৯"[Number(digit)]);
+
+const dhakaDate = (value: string) =>
+  new Intl.DateTimeFormat("bn-BD", {
+    timeZone: "Asia/Dhaka", day: "numeric", month: "short", year: "numeric",
+    hour: "numeric", minute: "2-digit", hour12: true,
+  }).format(new Date(value));
+
+function testStatus(test: ScheduledTest, now: number) {
+  const start = Date.parse(test.startAt);
+  const end = Date.parse(test.endAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return "অনির্ধারিত";
+  if (test.resultsPublished && now >= end) return "ফলাফল প্রকাশিত";
+  if (now < start) return "আসন্ন";
+  if (now < end) return "চলমান";
+  return "পরীক্ষা শেষ";
+}
+
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tests, setTests] = useState<ScheduledTest[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [scheduleError, setScheduleError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
+  const [reloadSchedule, setReloadSchedule] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function fetchSchedule() {
+      setScheduleLoading(true);
+      setScheduleError("");
+      try {
+        const response = await fetch("/api/schedule", {
+          cache: "no-store", signal: controller.signal,
+        });
+        const data: ScheduleResponse = await response.json();
+        if (!response.ok || !data.success || !Array.isArray(data.tests)) {
+          throw new Error(data.error || "সময়সূচি পাওয়া যাচ্ছে না।");
+        }
+        if (!controller.signal.aborted) setTests(data.tests);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setScheduleError(error instanceof Error ? error.message : "সময়সূচি পাওয়া যাচ্ছে না।");
+        }
+      } finally {
+        if (!controller.signal.aborted) setScheduleLoading(false);
+      }
+    }
+    void fetchSchedule();
+    return () => controller.abort();
+  }, [reloadSchedule]);
 
   const closeMenu = () => setMenuOpen(false);
   const scrollToClasses = () => {
@@ -134,15 +206,21 @@ export default function Home() {
             >
               লিডারবোর্ড ↗
             </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-xl bg-[#08754d] px-5 py-2.5 text-white transition hover:bg-[#065f40]"
+            >
+              আমার ড্যাশবোর্ড
+            </Link>
           </nav>
 
           {/* MOBILE NAVIGATION */}
           <div className="flex items-center gap-2 md:hidden">
             <Link
-              href="/leaderboard"
-              className="rounded-lg border border-[#cfe3d9] px-3 py-2 text-xs font-bold text-[#08754d]"
+              href="/dashboard"
+              className="rounded-lg bg-[#08754d] px-3 py-2 text-xs font-bold text-white"
             >
-              লিডারবোর্ড
+              ড্যাশবোর্ড
             </Link>
 
             <button
@@ -191,6 +269,13 @@ export default function Home() {
               >
                 লিডারবোর্ড
               </Link>
+              <Link
+                href="/dashboard"
+                onClick={closeMenu}
+                className="rounded-lg px-3 py-3 font-bold text-[#08754d] hover:bg-[#f0faf5]"
+              >
+                আমার ড্যাশবোর্ড
+              </Link>
             </div>
           </nav>
         )}
@@ -204,7 +289,7 @@ export default function Home() {
 
         <div className="relative mx-auto max-w-6xl px-5 py-12 text-center sm:py-14 lg:py-16">
           <p className="mx-auto inline-flex max-w-full items-center justify-center rounded-full border border-[#cfe5d6] bg-white px-4 py-2 text-center text-xs font-semibold text-[#08754d] sm:text-sm">
-            সূচনা ছাত্র সংগঠনের আয়োজনে · বাংলা উৎসব ১৪৩৩
+            সূচনা ছাত্র সংগঠনের আয়োজনে · বাংলা উৎসব ২০২৭
           </p>
 
           <h1 className="mx-auto mt-5 max-w-5xl font-bold leading-[1.3] tracking-tight text-[#153b32]">
@@ -249,6 +334,12 @@ export default function Home() {
             >
               লিডারবোর্ড দেখো
             </Link>
+            <Link
+              href="/dashboard"
+              className="w-full rounded-xl border border-[#cbded3] bg-white px-8 py-3 text-center font-bold text-[#08754d] transition hover:bg-[#eff8f2] sm:w-auto"
+            >
+              আমার ড্যাশবোর্ড
+            </Link>
           </div>
 
           <div className="mx-auto mt-8 flex max-w-xl flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-[#dceae1] pt-4 text-xs text-[#587168] sm:text-sm">
@@ -256,6 +347,53 @@ export default function Home() {
             <span>✓ নির্ধারিত সময়</span>
             <span>✓ তাৎক্ষণিক ফলাফল</span>
           </div>
+        </div>
+      </section>
+
+      {/* LIVE TEST SCHEDULE — sourced from ExamConfig */}
+      <section id="schedule" className="scroll-mt-24 border-b border-[#e5eee8] bg-[#f6faf7]">
+        <div className="mx-auto max-w-6xl px-5 py-12 sm:py-16">
+          <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-sm font-bold text-[#08754d]">২০২৭ সালের পরীক্ষাসূচি</p>
+              <h2 className="mt-2 text-2xl font-bold text-[#153b32] sm:text-3xl">মডেল টেস্টের সময়সূচি</h2>
+              <p className="mt-2 text-sm text-[#667b72]">সময়সূচি আয়োজকদের ExamConfig থেকে আপডেট হয়। সময় বাংলাদেশ সময় অনুযায়ী।</p>
+            </div>
+            <button type="button" onClick={() => setReloadSchedule((v) => v + 1)}
+              disabled={scheduleLoading}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#cfe3d9] bg-white px-4 py-2.5 text-sm font-bold text-[#08754d] disabled:opacity-50">
+              <RefreshCw size={16} className={scheduleLoading ? "animate-spin" : ""} /> সময়সূচি রিফ্রেশ
+            </button>
+          </div>
+          {scheduleLoading ? (
+            <div className="rounded-2xl border border-[#dce9e1] bg-white p-8 text-center text-[#667b72]">সময়সূচি লোড হচ্ছে...</div>
+          ) : scheduleError ? (
+            <div className="rounded-2xl border border-red-200 bg-white p-8 text-center text-red-700">{scheduleError}</div>
+          ) : tests.length === 0 ? (
+            <div className="rounded-2xl border border-[#dce9e1] bg-white p-8 text-center text-[#667b72]">এখনো কোনো মডেল টেস্টের সময়সূচি ঘোষণা করা হয়নি।</div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {tests.map((test) => {
+                const status = testStatus(test, now);
+                const active = status === "চলমান";
+                return (
+                  <article key={`${test.year}-${test.testId}`} className="rounded-[22px] border border-[#dce9e1] bg-white p-5 shadow-[0_4px_22px_rgba(17,65,45,0.05)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="rounded-lg bg-[#eaf7ee] px-3 py-1.5 text-sm font-bold text-[#08754d]">{test.testId}</span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-bold ${active ? "bg-[#dcfce7] text-[#166534]" : status === "ফলাফল প্রকাশিত" ? "bg-[#e8f1ff] text-[#2454a6]" : "bg-[#f0f3f1] text-[#597267]"}`}>{status}</span>
+                    </div>
+                    <h3 className="mt-4 text-xl font-bold text-[#153b32]">{test.title || `মডেল টেস্ট ${banglaDigits(test.testId.replace(/\D/g, ""))}`}</h3>
+                    <p className="mt-2 text-sm text-[#667b72]">{banglaDigits(test.questionsCount)}টি প্রশ্ন · প্রতি প্রশ্নে ১ মিনিট</p>
+                    <div className="mt-5 space-y-3 border-t border-[#e5eee8] pt-4 text-sm text-[#4e6a5e]">
+                      <p className="flex items-start gap-2"><CalendarDays size={17} className="mt-0.5 shrink-0 text-[#08754d]" /> শুরু: {dhakaDate(test.startAt)}</p>
+                      <p className="flex items-start gap-2"><Clock3 size={17} className="mt-0.5 shrink-0 text-[#08754d]" /> শেষ: {dhakaDate(test.endAt)}</p>
+                    </div>
+                    <p className="mt-4 text-xs leading-6 text-[#71847b]">{active ? "পরীক্ষায় অংশ নিতে নিচের শ্রেণি নির্বাচন করো।" : status === "ফলাফল প্রকাশিত" ? "প্রকাশিত মেধাতালিকা লিডারবোর্ডে দেখো।" : status === "আসন্ন" ? "নির্ধারিত সময় শুরু হলে পরীক্ষা দেওয়া যাবে।" : "এই পরীক্ষার সময়সীমা শেষ হয়েছে।"}</p>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
@@ -334,7 +472,7 @@ export default function Home() {
             </h2>
 
             <p className="mt-4 leading-8 text-[#64786e]">
-              নাম ও বিদ্যালয়ের তথ্য দিয়ে পরীক্ষা শুরু করো।
+              নিবন্ধন করে লগইন করার পর পরীক্ষা শুরু করো।
               প্রতিটি প্রশ্ন মনোযোগ দিয়ে পড়ো এবং নির্ধারিত
               সময়ের মধ্যে উত্তর জমা দাও।
             </p>
@@ -376,7 +514,7 @@ export default function Home() {
       <footer className="border-t border-[#e5eee8] bg-white px-5 py-10 text-center">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-xl font-bold text-[#174a39]">
-            বাংলা উৎসব ১৪৩৩
+            বাংলা উৎসব ২০২৭
           </h2>
 
           <p className="mt-1 text-sm text-[#6a8175]">
@@ -418,7 +556,7 @@ export default function Home() {
           </p>
 
           <p className="mt-3 text-xs text-[#8a9c92]">
-            © ২০২৬ · বাংলা উৎসব · সর্বস্বত্ব সংরক্ষিত
+            © ২০২৭ · বাংলা উৎসব · সর্বস্বত্ব সংরক্ষিত
           </p>
         </div>
       </footer>

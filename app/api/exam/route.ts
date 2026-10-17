@@ -4,8 +4,19 @@ import { SESSION_COOKIE, verifySession } from "@/lib/student-session";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxn5dL8cgN6ITClAoj0Irvrb0AdvLrT9_yHetYEg4U9cxxIU9Bwxgox6VLGy_ZQh0p6/exec";
-const examActions = new Set(["start", "save", "submit", "status"]);
+const SCRIPT_URL = process.env.EXAM_SCRIPT_URL;
+
+if (!SCRIPT_URL) {
+  throw new Error("EXAM_SCRIPT_URL is missing");
+}
+const examActions = new Set([
+  "start",
+  "save",
+  "submit",
+  "status",
+  "history",
+  "archive",
+]);
 const publicActions = new Set(["register", "login"]);
 
 export async function POST(request: NextRequest) {
@@ -36,8 +47,9 @@ export async function POST(request: NextRequest) {
         year: student.year,
         token: typeof input.token === "string" ? input.token : "",
         answers: input.answers,
-        retake: input.retake === true,
-        backendSecret: sharedSecret,
+retake: input.retake === true,
+testId: typeof input.testId === "string" ? input.testId : "MT01",
+backendSecret: sharedSecret,
       };
     } else {
       // Preserve the existing registration/login endpoint.
@@ -46,7 +58,7 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 25000);
     try {
-      const upstream = await fetch(SCRIPT_URL, {
+      const upstream = await fetch(SCRIPT_URL!, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),

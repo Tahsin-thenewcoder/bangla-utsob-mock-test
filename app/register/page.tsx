@@ -105,7 +105,7 @@ export default function RegisterPage() {
           <p className="mb-2 text-sm font-semibold text-[#e9dfb8]">বাংলা উৎসব | মডেল টেস্ট</p>
           <h1 className="text-center text-[29px] font-extrabold leading-tight tracking-tight text-[#f9edc9] sm:text-5xl">পরীক্ষার্থী নিবন্ধন</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#fff8e5]/85 sm:text-base">
-            বাংলা উৎসবের প্রস্তুতিমূলক মডেল টেস্টে অংশ নিতে ২০২৬ সালের জন্য তোমার পরীক্ষার্থী আইডি তৈরি করো।
+            বাংলা উৎসবের প্রস্তুতিমূলক মডেল টেস্টে অংশ নিতে ২০২৭ সালের জন্য তোমার পরীক্ষার্থী আইডি তৈরি করো।
           </p>
         </div>
       </div>
