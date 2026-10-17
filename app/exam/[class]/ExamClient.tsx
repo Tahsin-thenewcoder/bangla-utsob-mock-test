@@ -261,7 +261,22 @@ export default function ExamClient({ className }: { className: string }) {
           {error && <div role="alert" className="mt-5 rounded-xl bg-red-50 p-4 text-red-700">{error} <button onClick={()=>void flushSave()} className="underline">আবার সংরক্ষণ করো</button></div>}
           {confirm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div role="dialog" aria-modal="true" className="w-full max-w-md rounded-2xl bg-white p-6"><h3 className="text-xl font-bold">পরীক্ষা জমা দেবে?</h3><p className="my-4 text-slate-600">উত্তর দেওয়া হয়েছে {answeredCount}টি, বাকি {questions.length-answeredCount}টি। জমা দিলে আর পরিবর্তন করা যাবে না।</p><div className="flex justify-end gap-3"><button onClick={()=>setConfirm(false)} className="rounded-lg border px-4 py-2">ফিরে যাও</button><button onClick={()=>void submitExam()} className="rounded-lg bg-[#087457] px-4 py-2 text-white">হ্যাঁ, জমা দাও</button></div></div></div>}
         </section>
-      : result ? <section className="rounded-3xl bg-white p-6 shadow-xl sm:p-8"><CheckCircle2 className="mx-auto text-[#087457]" size={42}/><h2 className="mt-3 text-center text-2xl font-bold">পরীক্ষার ফলাফল</h2><p className="mt-3 text-center text-4xl font-extrabold text-[#087457]">{result.score} / {result.total}</p><p className="mt-3 text-center text-slate-600">সঠিক {result.correct} · ভুল {result.wrong} · উত্তর দাওনি {result.unanswered}</p><p className="mt-2 text-center text-sm">Attempt {result.attempt} · {result.leaderboardEligible ? "Leaderboard-এ গণনা হবে" : "Leaderboard-এ গণনা হবে না"}</p><h3 className="mb-4 mt-8 text-xl font-bold">উত্তর পর্যালোচনা</h3><div className="space-y-4">{result.review.map((q,i)=><article key={`${q.id}-${i}`} className="rounded-xl border p-4"><h4 className="mb-3 font-bold">{i+1}. {q.question}</h4>{q.options.map((opt,j)=><p key={j} className={`my-1 rounded-lg px-3 py-2 ${j===q.correctIndex ? "bg-emerald-50 text-emerald-900" : j===q.selectedIndex ? "bg-red-50 text-red-800" : "bg-slate-50"}`}>{letters[j]}. {opt} {j===q.correctIndex ? "✓ সঠিক" : j===q.selectedIndex ? "✗ তোমার উত্তর" : ""}</p>)}{q.explanation && <p className="mt-2 text-sm">ব্যাখ্যা: {q.explanation}</p>}</article>)}</div><button onClick={()=>{setResult(null);setSession(null);setAgreed(false);setRetake(true);setError("");}} className="mt-6 w-full rounded-xl border border-[#087457] p-3 font-bold">আবার পরীক্ষা দাও</button><button
+      : result ? <section className="rounded-3xl bg-white p-6 shadow-xl sm:p-8"><CheckCircle2 className="mx-auto text-[#087457]" size={42}/><h2 className="mt-3 text-center text-2xl font-bold">পরীক্ষার ফলাফল</h2><p className="mt-3 text-center text-4xl font-extrabold text-[#087457]">{result.score} / {result.total}</p><p className="mt-3 text-center text-slate-600">সঠিক {result.correct} · ভুল {result.wrong} · উত্তর দাওনি {result.unanswered}</p><p className="mt-2 text-center text-sm">Attempt {result.attempt} · {result.leaderboardEligible ? "Leaderboard-এ গণনা হবে" : "Leaderboard-এ গণনা হবে না"}</p><h3 className="mb-4 mt-8 text-xl font-bold">উত্তর পর্যালোচনা</h3><div className="space-y-4">{result.review.map((q,i)=><article key={`${q.id}-${i}`} className="rounded-xl border p-4"><h4 className="mb-3 font-bold">{i+1}. {q.question}</h4>{q.options.map((opt,j)=><p key={j} className={`my-1 rounded-lg px-3 py-2 ${j===q.correctIndex ? "bg-emerald-50 text-emerald-900" : j===q.selectedIndex ? "bg-red-50 text-red-800" : "bg-slate-50"}`}>{letters[j]}. {opt} {j===q.correctIndex ? "✓ সঠিক" : j===q.selectedIndex ? "✗ তোমার উত্তর" : ""}</p>)}{q.explanation && <p className="mt-2 text-sm">ব্যাখ্যা: {q.explanation}</p>}</article>)}</div><button onClick={()=>{setResult(null);setSession(null);setAgreed(false);setRetake(true);setError("");}} className="mt-6 w-full rounded-xl border border-[#087457] p-3 font-bold">আবার পরীক্ষা দাও</button>
+      
+        
+<button
+  type="button"
+  onClick={() => {
+    window.location.href = "/dashboard";
+  }}
+  disabled={busy}
+  className="mt-3 w-full rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+>
+  Dashboard-এ ফিরে যাও
+</button>
+
+
+      <button
   type="button"
   onClick={() => void handleLogout()}
   disabled={busy}
